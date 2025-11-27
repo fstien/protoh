@@ -2,51 +2,57 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"io"
-	"log"
-	"net/http"
-	"time"
+	"net"
 )
 
-func echoHandler(w http.ResponseWriter, r *http.Request) {
-	// Prevent huge bodies from exhausting memory
-	r.Body = http.MaxBytesReader(w, r.Body, 10<<20) // 10 MiB
-	defer r.Body.Close()
-
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-
-	// Summary
-	io.WriteString(w, "Method: "+r.Method+"\n")
-	io.WriteString(w, "URL: "+r.URL.String()+"\n")
-	io.WriteString(w, "Proto: "+r.Proto+"\n\n")
-
-	// Headers
-	io.WriteString(w, "Headers:\n")
-	for k, vs := range r.Header {
-		for _, v := range vs {
-			io.WriteString(w, k+": "+v+"\n")
-		}
+func main() {
+	ln, err := net.Listen("tcp", ":8080")
+	if err != nil {
+		panic(err)
 	}
-	io.WriteString(w, "\nBody:\n")
+	defer ln.Close()
 
-	// Echo body to response
-	if _, err := io.Copy(w, r.Body); err != nil {
-		http.Error(w, "error reading body: "+err.Error(), http.StatusBadRequest)
-		return
+	fmt.Println("listening on 8080")
+
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			fmt.Println("error accepting: ", err)
+			continue
+		}
+
+		go handleConn(conn)
 	}
 }
 
-func main() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", echoHandler)
+func handleConn(conn net.Conn) {
+	buf := make([]byte, 1024)
+	defer conn.Close()
 
-	srv := &http.Server{
-		Addr:         ":8080",
-		Handler:      mux,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
+	for {
+		nR, errR := conn.Read(buf)
+		nW, errW := conn.Write(buf[:nR])
+
+		if errR != nil {
+			if errors.Is(errR, io.EOF) {
+				fmt.Println("read EOF")
+				return
+			}
+			fmt.Println("read error: ", errR)
+			return
+		}
+
+		if errW != nil {
+			fmt.Println("write error: ", errW)
+			return
+		}
+
+		if nR != nW {
+			fmt.Printf("nR: %d, nW: %d", nR, nW)
+			return
+		}
 	}
-
-	log.Printf("echo server listening on %s", srv.Addr)
-	log.Fatal(srv.ListenAndServe())
 }
