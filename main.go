@@ -2,9 +2,10 @@
 package main
 
 import (
-	"errors"
+	"bufio"
+	"encoding/json"
 	"fmt"
-	"io"
+	"math"
 	"net"
 )
 
@@ -28,31 +29,93 @@ func main() {
 	}
 }
 
+type Req struct {
+	Method string `json:"method"`
+	Number any    `json:"number"`
+}
+
+type Rsp struct {
+	Method string `json:"method"`
+	Prime  bool   `json:"prime"`
+}
+
+type Malformed struct {
+	Error string `json:"error"`
+}
+
 func handleConn(conn net.Conn) {
-	buf := make([]byte, 1024)
 	defer conn.Close()
 
+	reader := bufio.NewReader(conn)
+
 	for {
-		nR, errR := conn.Read(buf)
-		nW, errW := conn.Write(buf[:nR])
-
-		if errR != nil {
-			if errors.Is(errR, io.EOF) {
-				fmt.Println("read EOF")
-				return
-			}
-			fmt.Println("read error: ", errR)
+		reqStr, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("read error: ", err)
 			return
 		}
 
-		if errW != nil {
-			fmt.Println("write error: ", errW)
+		req := Req{}
+		err = json.Unmarshal([]byte(reqStr), &req)
+		if err != nil {
+			fmt.Println("unmarshal error: ", err)
 			return
 		}
 
-		if nR != nW {
-			fmt.Printf("nR: %d, nW: %d", nR, nW)
+		if req.Method != "isPrime" {
+			j, _ := json.Marshal(&Malformed{Error: "invalid_method"})
+			conn.Write(append(j, byte('\n')))
+			return
+		}
+
+		n := 0
+
+		switch req.Number.(type) {
+		case string:
+			j, _ := json.Marshal(&Malformed{Error: "invalid_number"})
+			conn.Write(append(j, byte('\n')))
+			return
+		case float64:
+			n = int(req.Number.(float64))
+		case int:
+			n = req.Number.(int)
+		}
+
+		rsp := &Rsp{
+			Method: "isPrime",
+			Prime:  IsPrime(n),
+		}
+		j, err := json.Marshal(rsp)
+		if err != nil {
+			fmt.Println("failed to marshal", err)
+			return
+		}
+
+		_, err = conn.Write(append(j, byte('\n')))
+		if err != nil {
+			fmt.Println("failed to write", err)
 			return
 		}
 	}
+}
+
+func IsPrime(n int) bool {
+	if n < 2 {
+		return false
+	}
+	if n == 2 || n == 3 {
+		return true
+	}
+	if n%2 == 0 {
+		return false
+	}
+
+	// Only check odd numbers up to √n
+	limit := int(math.Sqrt(float64(n)))
+	for i := 3; i <= limit; i += 2 {
+		if n%i == 0 {
+			return false
+		}
+	}
+	return true
 }
