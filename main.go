@@ -19,7 +19,7 @@ func main() {
 
 	fmt.Println("listening on 8080")
 
-	b := &messageBroker{}
+	b := newMessageBroker()
 
 	for {
 		conn, err := ln.Accept()
@@ -35,6 +35,13 @@ func main() {
 type messageBroker struct {
 	subscribers map[string]chan message
 	mu          sync.Mutex
+}
+
+func newMessageBroker() *messageBroker {
+	return &messageBroker{
+		subscribers: make(map[string]chan message),
+		mu:          sync.Mutex{},
+	}
 }
 
 func (b *messageBroker) send(msg message) {
