@@ -55,6 +55,8 @@ func handleConn(conn net.Conn) {
 			return
 		}
 
+		fmt.Println("reqStr: ", reqStr)
+
 		req := Req{}
 		err = json.Unmarshal([]byte(reqStr), &req)
 		if err != nil {
