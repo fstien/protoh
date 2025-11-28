@@ -2,10 +2,9 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
+	"encoding/binary"
 	"fmt"
-	"math"
+	"io"
 	"net"
 )
 
@@ -29,102 +28,58 @@ func main() {
 	}
 }
 
-type Req struct {
-	Method *string  `json:"method"`
-	Number *float64 `json:"number"`
-}
-
-type Rsp struct {
-	Method string `json:"method"`
-	Prime  bool   `json:"prime"`
-}
-
-type Malformed struct {
-	Error string `json:"error"`
-}
-
 func handleConn(conn net.Conn) {
 	defer conn.Close()
 
-	reader := bufio.NewReader(conn)
+	prices := make(map[int32]int32)
+	buf := make([]byte, 9)
 
 	for {
-		reqStr, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Println("read error: ", err)
+		n, err := io.ReadFull(conn, buf)
+		if err != nil || n != 9 {
+			fmt.Printf("read error: %s, n: %d", err.Error(), n)
 			return
 		}
 
-		fmt.Println("reqStr: ", reqStr)
+		i1 := int32(binary.BigEndian.Uint32(buf[1:5]))
+		i2 := int32(binary.BigEndian.Uint32(buf[5:9]))
 
-		req := Req{}
-		err = json.Unmarshal([]byte(reqStr), &req)
-		if err != nil {
-			j, _ := json.Marshal(&Malformed{Error: "invalid_json"})
-			conn.Write(append(j, byte('\n')))
-			return
-		}
+		switch buf[0] {
+		case 'I':
+			ts := i1
+			price := i2
 
-		if req.Number == nil {
-			j, _ := json.Marshal(&Malformed{Error: "missing_number"})
-			conn.Write(append(j, byte('\n')))
-			return
-		}
-		if req.Method == nil {
-			j, _ := json.Marshal(&Malformed{Error: "missing_method"})
-			conn.Write(append(j, byte('\n')))
-			return
-		}
+			prices[ts] = price
+		case 'Q':
+			mintime := i1
+			maxtime := i2
 
-		if *req.Method != "isPrime" {
-			j, _ := json.Marshal(&Malformed{Error: "invalid_method"})
-			conn.Write(append(j, byte('\n')))
-			return
-		}
+			sum := 0
+			c := 0
 
-		n := int(*req.Number)
+			for ts, p := range prices {
+				if ts >= mintime && ts <= maxtime {
+					sum += int(p)
+					c++
+				}
+			}
 
-		if *req.Number != float64(n) {
-			j, _ := json.Marshal(&Rsp{Method: "isPrime", Prime: false})
-			conn.Write(append(j, byte('\n')))
-			continue
-		}
+			mean := 0
+			if c > 0 {
+				mean = sum / c
+			}
 
-		rsp := &Rsp{
-			Method: "isPrime",
-			Prime:  IsPrime(n),
-		}
-		j, err := json.Marshal(rsp)
-		if err != nil {
-			fmt.Println("failed to marshal", err)
-			return
-		}
+			bytes := make([]byte, 4)
+			binary.BigEndian.PutUint32(bytes, uint32(mean))
 
-		_, err = conn.Write(append(j, byte('\n')))
-		if err != nil {
-			fmt.Println("failed to write", err)
+			n, err := conn.Write(bytes)
+			if err != nil || n != 4 {
+				fmt.Printf("failed to respond with mean %s, %d", err.Error(), n)
+				return
+			}
+		default:
+			fmt.Println("invalid request: ", buf[0])
 			return
 		}
 	}
-}
-
-func IsPrime(n int) bool {
-	if n < 2 {
-		return false
-	}
-	if n == 2 || n == 3 {
-		return true
-	}
-	if n%2 == 0 {
-		return false
-	}
-
-	// Only check odd numbers up to √n
-	limit := int(math.Sqrt(float64(n)))
-	for i := 3; i <= limit; i += 2 {
-		if n%i == 0 {
-			return false
-		}
-	}
-	return true
 }
