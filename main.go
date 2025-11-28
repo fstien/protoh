@@ -67,7 +67,7 @@ func (b *messageBroker) sub(name string) (chan message, error) {
 		s <- message{content: fmt.Sprintf("%s has joined the room", name)}
 	}
 
-	c := make(chan message, 1)
+	c := make(chan message, 10)
 	b.subscribers[name] = c
 	return c, nil
 }
@@ -125,8 +125,7 @@ func handleConn(b *messageBroker, conn net.Conn) {
 		return
 	}
 
-	members := b.members()
-	_, err = conn.Write([]byte(fmt.Sprintf("* The room contains: %s\n", strings.Join(members, ", "))))
+	_, err = conn.Write([]byte(fmt.Sprintf("* The room contains: %s\n", strings.Join(b.members(), ", "))))
 	if err != nil {
 		fmt.Println("failed to write members", err)
 	}
