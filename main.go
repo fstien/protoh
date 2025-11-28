@@ -126,11 +126,9 @@ func handleConn(b *messageBroker, conn net.Conn) {
 	}
 
 	members := b.members()
-	if len(members) > 0 {
-		_, err = conn.Write([]byte(fmt.Sprintf("* The room contains: %s", strings.Join(members, ", "))))
-		if err != nil {
-			fmt.Println("failed to write members", err)
-		}
+	_, err = conn.Write([]byte(fmt.Sprintf("* The room contains: %s\n", strings.Join(members, ", "))))
+	if err != nil {
+		fmt.Println("failed to write members", err)
 	}
 
 	c, err := b.sub(name)
@@ -162,12 +160,12 @@ func handleConn(b *messageBroker, conn net.Conn) {
 			return
 		case msg := <-c:
 			if msg.sender == "" {
-				_, err = conn.Write([]byte(fmt.Sprintf("* %s", msg.content)))
+				_, err = conn.Write([]byte(fmt.Sprintf("* %s\n", msg.content)))
 				if err != nil {
 					fmt.Println("failed to write msg", err)
 				}
 			} else {
-				_, err = conn.Write([]byte(fmt.Sprintf("[%s] %s", msg.sender, msg.content)))
+				_, err = conn.Write([]byte(fmt.Sprintf("[%s] %s\n", msg.sender, msg.content)))
 				if err != nil {
 					fmt.Println("failed to write msg", err)
 				}
