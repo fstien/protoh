@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"strings"
 )
 
 func main() {
@@ -21,6 +22,8 @@ func main() {
 
 	buf := make([]byte, 1000)
 
+	kv := make(map[string]string)
+
 	for {
 		n, clientAddr, err := conn.ReadFromUDP(buf)
 		if err != nil {
@@ -30,9 +33,26 @@ func main() {
 
 		log.Printf("received %d bytes from %s", n, clientAddr)
 
-		_, err = conn.WriteToUDP(buf[:n], clientAddr)
-		if err != nil {
-			log.Printf("write error: %v", err)
+		req := string(buf[:n])
+
+		if string(req) == "version" {
+			_, err = conn.WriteToUDP([]byte("version=Francois' kv store"), clientAddr)
+			if err != nil {
+				log.Printf("write error: %v", err)
+			}
+		}
+
+		if strings.Contains(req, "=") {
+			b, a, _ := strings.Cut(req, "=")
+
+			kv[b] = a
+		} else {
+			rsp := kv[req]
+
+			_, err = conn.WriteToUDP([]byte(rsp), clientAddr)
+			if err != nil {
+				log.Printf("write error: %v", err)
+			}
 		}
 	}
 }
