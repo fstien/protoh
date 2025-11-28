@@ -142,6 +142,7 @@ func handleConn(b *messageBroker, conn net.Conn) {
 	go func(cancel context.CancelFunc, b *messageBroker, r *bufio.Reader) {
 		for {
 			msg, err := reader.ReadString('\n')
+			msg = strings.TrimSuffix(msg, "\n")
 			if err != nil {
 				cancel()
 				return
