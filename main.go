@@ -120,16 +120,17 @@ func handleConn(b *messageBroker, conn net.Conn) {
 
 	name = strings.TrimSuffix(name, "\n")
 
-	fmt.Printf("name=%s.", name)
-
 	if len(name) < 1 || len(name) > 1000 || !IsASCIIAlphanumeric(name) {
 		conn.Write([]byte("invalid name"))
 		return
 	}
 
-	_, err = conn.Write([]byte(fmt.Sprintf("* The room contains: %s", strings.Join(b.members(), ", "))))
-	if err != nil {
-		fmt.Println("failed to write members", err)
+	members := b.members()
+	if len(members) > 0 {
+		_, err = conn.Write([]byte(fmt.Sprintf("* The room contains: %s", strings.Join(members, ", "))))
+		if err != nil {
+			fmt.Println("failed to write members", err)
+		}
 	}
 
 	c, err := b.sub(name)
