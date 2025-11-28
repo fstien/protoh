@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"sync"
 )
 
 func main() {
@@ -32,73 +31,121 @@ func main() {
 	}
 }
 
+type commandType string
+
+const (
+	subscribe   commandType = "subscribe"
+	send        commandType = "send"
+	unsubscribe commandType = "unsubscribe"
+	listMembers commandType = "list_members"
+)
+
+type command struct {
+	t        commandType
+	name     string
+	ch       chan message
+	content  string
+	memberCh chan []string
+}
+
 type messageBroker struct {
-	subscribers map[string]chan message
-	mu          sync.Mutex
-}
-
-func newMessageBroker() *messageBroker {
-	return &messageBroker{
-		subscribers: make(map[string]chan message),
-		mu:          sync.Mutex{},
-	}
-}
-
-func (b *messageBroker) send(msg message) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	for name, c := range b.subscribers {
-		if name != msg.sender {
-			c <- msg
-		}
-	}
-}
-
-func (b *messageBroker) sub(name string) (chan message, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if b.subscribers[name] != nil {
-		return nil, fmt.Errorf("subscriber already exists with name %s", name)
-	}
-
-	for _, s := range b.subscribers {
-		s <- message{content: fmt.Sprintf("%s has joined the room", name)}
-	}
-
-	c := make(chan message, 10)
-	b.subscribers[name] = c
-	return c, nil
-}
-
-func (b *messageBroker) members() []string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	m := []string{}
-
-	for s, _ := range b.subscribers {
-		m = append(m, s)
-	}
-
-	return m
-}
-
-func (b *messageBroker) unsub(name string) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	for _, s := range b.subscribers {
-		s <- message{content: fmt.Sprintf("%s has left the room", name)}
-	}
-
-	delete(b.subscribers, name)
+	commandCh chan command
 }
 
 type message struct {
 	sender  string
 	content string
+}
+
+func newMessageBroker() *messageBroker {
+	b := &messageBroker{
+		commandCh: make(chan command),
+	}
+	go b.loop()
+	return b
+}
+
+func (b *messageBroker) loop() {
+	sub := make(map[string]chan message)
+
+	for {
+		select {
+		case c := <-b.commandCh:
+			switch c.t {
+			case subscribe:
+				for _, s := range sub {
+					s <- message{content: fmt.Sprintf("%s has joined the room", c.name)}
+				}
+				sub[c.name] = c.ch
+
+			case send:
+				for name, s := range sub {
+					if name != c.name {
+						s <- message{
+							sender:  c.name,
+							content: c.content,
+						}
+					}
+				}
+
+			case unsubscribe:
+				for n, s := range sub {
+					if n != c.name {
+						s <- message{content: fmt.Sprintf("%s has left the room", c.name)}
+					}
+				}
+				delete(sub, c.name)
+
+			case listMembers:
+				m := make([]string, 0)
+
+				for n, _ := range sub {
+					m = append(m, n)
+				}
+
+				c.memberCh <- m
+			}
+		}
+	}
+}
+
+func (b *messageBroker) send(msg message) {
+	b.commandCh <- command{
+		t:       send,
+		name:    msg.sender,
+		content: msg.content,
+	}
+}
+
+func (b *messageBroker) sub(name string) (chan message, error) {
+	c := make(chan message, 10)
+
+	b.commandCh <- command{
+		t:    subscribe,
+		name: name,
+		ch:   c,
+	}
+
+	return c, nil
+}
+
+func (b *messageBroker) members() []string {
+	c := make(chan []string)
+
+	b.commandCh <- command{
+		t:        listMembers,
+		memberCh: c,
+	}
+
+	m := <-c
+	return m
+}
+
+func (b *messageBroker) unsub(name string) {
+	b.commandCh <- command{
+		t:    unsubscribe,
+		name: name,
+	}
 }
 
 func handleConn(b *messageBroker, conn net.Conn) {
