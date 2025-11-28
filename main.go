@@ -111,6 +111,8 @@ func handleConn(b *messageBroker, conn net.Conn) {
 		return
 	}
 
+	name = strings.TrimSuffix(name, "\n")
+
 	fmt.Printf("name=%s.", name)
 
 	if len(name) < 1 || len(name) > 1000 || !IsASCIIAlphanumeric(name) {
