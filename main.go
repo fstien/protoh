@@ -30,8 +30,8 @@ func main() {
 }
 
 type Req struct {
-	Method string `json:"method"`
-	Number any    `json:"number"`
+	Method *string `json:"method"`
+	Number *any    `json:"number"`
 }
 
 type Rsp struct {
@@ -62,7 +62,18 @@ func handleConn(conn net.Conn) {
 			return
 		}
 
-		if req.Method != "isPrime" {
+		if req.Number == nil {
+			j, _ := json.Marshal(&Malformed{Error: "missing_number"})
+			conn.Write(append(j, byte('\n')))
+			return
+		}
+		if req.Method == nil {
+			j, _ := json.Marshal(&Malformed{Error: "missing_method"})
+			conn.Write(append(j, byte('\n')))
+			return
+		}
+
+		if *req.Method != "isPrime" {
 			j, _ := json.Marshal(&Malformed{Error: "invalid_method"})
 			conn.Write(append(j, byte('\n')))
 			return
@@ -70,15 +81,15 @@ func handleConn(conn net.Conn) {
 
 		n := 0
 
-		switch req.Number.(type) {
+		switch (*req.Number).(type) {
 		case string:
 			j, _ := json.Marshal(&Malformed{Error: "invalid_number"})
 			conn.Write(append(j, byte('\n')))
 			return
 		case float64:
-			n = int(req.Number.(float64))
+			n = int((*req.Number).(float64))
 		case int:
-			n = req.Number.(int)
+			n = (*req.Number).(int)
 		}
 
 		rsp := &Rsp{
