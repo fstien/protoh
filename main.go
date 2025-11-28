@@ -45,20 +45,53 @@ func main() {
 	}
 }
 
-type commandType string
+type command interface {
+	apply(sub map[string]chan message)
+}
 
-const (
-	subscribe   commandType = "subscribe"
-	send        commandType = "send"
-	unsubscribe commandType = "unsubscribe"
-)
-
-type command struct {
-	t        commandType
+type subscribe struct {
 	name     string
 	ch       chan message
-	content  string
 	memberCh chan []string
+}
+
+func (s *subscribe) apply(sub map[string]chan message) {
+	members := make([]string, 0)
+	for m, sb := range sub {
+		members = append(members, m)
+		sb <- message{content: fmt.Sprintf("%s has joined the room", s.name)}
+	}
+	sub[s.name] = s.ch
+	s.memberCh <- members
+}
+
+type send struct {
+	name    string
+	content string
+}
+
+func (s *send) apply(sub map[string]chan message) {
+	for name, sb := range sub {
+		if s.name != name {
+			sb <- message{
+				sender:  s.name,
+				content: s.content,
+			}
+		}
+	}
+}
+
+type unsubscribe struct {
+	name string
+}
+
+func (u *unsubscribe) apply(sub map[string]chan message) {
+	for n, s := range sub {
+		if n != u.name {
+			s <- message{content: fmt.Sprintf("%s has left the room", u.name)}
+		}
+	}
+	delete(sub, u.name)
 }
 
 type messageBroker struct {
@@ -86,41 +119,13 @@ func (b *messageBroker) loop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case c := <-b.commandCh:
-			switch c.t {
-			case subscribe:
-				members := make([]string, 0)
-				for m, s := range sub {
-					members = append(members, m)
-					s <- message{content: fmt.Sprintf("%s has joined the room", c.name)}
-				}
-				sub[c.name] = c.ch
-				c.memberCh <- members
-
-			case send:
-				for name, s := range sub {
-					if name != c.name {
-						s <- message{
-							sender:  c.name,
-							content: c.content,
-						}
-					}
-				}
-
-			case unsubscribe:
-				for n, s := range sub {
-					if n != c.name {
-						s <- message{content: fmt.Sprintf("%s has left the room", c.name)}
-					}
-				}
-				delete(sub, c.name)
-			}
+			c.apply(sub)
 		}
 	}
 }
 
 func (b *messageBroker) send(msg message) {
-	b.commandCh <- command{
-		t:       send,
+	b.commandCh <- &send{
 		name:    msg.sender,
 		content: msg.content,
 	}
@@ -130,8 +135,7 @@ func (b *messageBroker) sub(name string) ([]string, chan message, error) {
 	c := make(chan message, 10)
 	memberCh := make(chan []string)
 
-	b.commandCh <- command{
-		t:        subscribe,
+	b.commandCh <- &subscribe{
 		name:     name,
 		ch:       c,
 		memberCh: memberCh,
@@ -142,8 +146,7 @@ func (b *messageBroker) sub(name string) ([]string, chan message, error) {
 }
 
 func (b *messageBroker) unsub(name string) {
-	b.commandCh <- command{
-		t:    unsubscribe,
+	b.commandCh <- &unsubscribe{
 		name: name,
 	}
 }
@@ -188,7 +191,9 @@ func handleConn(ctx context.Context, b *messageBroker, conn net.Conn) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	go func(cancel context.CancelFunc, b *messageBroker, r *bufio.Reader) {
+	msgChan := make(chan message)
+
+	go func(cancel context.CancelFunc, r *bufio.Reader) {
 		for {
 			msg, err := reader.ReadString('\n')
 			msg = strings.TrimSuffix(msg, "\n")
@@ -196,17 +201,19 @@ func handleConn(ctx context.Context, b *messageBroker, conn net.Conn) {
 				cancel()
 				return
 			}
-			b.send(message{
+			msgChan <- message{
 				sender:  name,
 				content: msg,
-			})
+			}
 		}
-	}(cancel, b, reader)
+	}(cancel, reader)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case readMsg := <-msgChan:
+			b.send(readMsg)
 		case msg := <-c:
 			if msg.sender == "" {
 				_, err = conn.Write([]byte(fmt.Sprintf("* %s\n", msg.content)))
