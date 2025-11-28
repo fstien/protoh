@@ -6,7 +6,10 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 )
 
 func main() {
@@ -17,8 +20,19 @@ func main() {
 	defer ln.Close()
 
 	fmt.Println("listening on 8080")
+	ctx, cancel := context.WithCancel(context.Background())
 
-	b := newMessageBroker()
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+	defer signal.Stop(sigCh)
+
+	go func() {
+		<-sigCh
+		ln.Close()
+		cancel()
+	}()
+
+	b := newMessageBroker(ctx)
 
 	for {
 		conn, err := ln.Accept()
@@ -27,7 +41,7 @@ func main() {
 			continue
 		}
 
-		go handleConn(b, conn)
+		go handleConn(ctx, b, conn)
 	}
 }
 
@@ -37,7 +51,6 @@ const (
 	subscribe   commandType = "subscribe"
 	send        commandType = "send"
 	unsubscribe commandType = "unsubscribe"
-	listMembers commandType = "list_members"
 )
 
 type command struct {
@@ -57,26 +70,31 @@ type message struct {
 	content string
 }
 
-func newMessageBroker() *messageBroker {
+func newMessageBroker(ctx context.Context) *messageBroker {
 	b := &messageBroker{
 		commandCh: make(chan command),
 	}
-	go b.loop()
+	go b.loop(ctx)
 	return b
 }
 
-func (b *messageBroker) loop() {
+func (b *messageBroker) loop(ctx context.Context) {
 	sub := make(map[string]chan message)
 
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case c := <-b.commandCh:
 			switch c.t {
 			case subscribe:
-				for _, s := range sub {
+				members := make([]string, 0)
+				for m, s := range sub {
+					members = append(members, m)
 					s <- message{content: fmt.Sprintf("%s has joined the room", c.name)}
 				}
 				sub[c.name] = c.ch
+				c.memberCh <- members
 
 			case send:
 				for name, s := range sub {
@@ -95,15 +113,6 @@ func (b *messageBroker) loop() {
 					}
 				}
 				delete(sub, c.name)
-
-			case listMembers:
-				m := make([]string, 0)
-
-				for n, _ := range sub {
-					m = append(m, n)
-				}
-
-				c.memberCh <- m
 			}
 		}
 	}
@@ -117,28 +126,19 @@ func (b *messageBroker) send(msg message) {
 	}
 }
 
-func (b *messageBroker) sub(name string) (chan message, error) {
+func (b *messageBroker) sub(name string) ([]string, chan message, error) {
 	c := make(chan message, 10)
+	memberCh := make(chan []string)
 
 	b.commandCh <- command{
-		t:    subscribe,
-		name: name,
-		ch:   c,
+		t:        subscribe,
+		name:     name,
+		ch:       c,
+		memberCh: memberCh,
 	}
 
-	return c, nil
-}
-
-func (b *messageBroker) members() []string {
-	c := make(chan []string)
-
-	b.commandCh <- command{
-		t:        listMembers,
-		memberCh: c,
-	}
-
-	m := <-c
-	return m
+	members := <-memberCh
+	return members, c, nil
 }
 
 func (b *messageBroker) unsub(name string) {
@@ -148,7 +148,7 @@ func (b *messageBroker) unsub(name string) {
 	}
 }
 
-func handleConn(b *messageBroker, conn net.Conn) {
+func handleConn(ctx context.Context, b *messageBroker, conn net.Conn) {
 	defer conn.Close()
 
 	reader := bufio.NewReader(conn)
@@ -172,19 +172,21 @@ func handleConn(b *messageBroker, conn net.Conn) {
 		return
 	}
 
-	_, err = conn.Write([]byte(fmt.Sprintf("* The room contains: %s\n", strings.Join(b.members(), ", "))))
-	if err != nil {
-		fmt.Println("failed to write members", err)
-	}
-
-	c, err := b.sub(name)
+	members, c, err := b.sub(name)
 	if err != nil {
 		fmt.Println("failed to subscribe", err)
 		return
 	}
+
+	_, err = conn.Write([]byte(fmt.Sprintf("* The room contains: %s\n", strings.Join(members, ", "))))
+	if err != nil {
+		fmt.Println("failed to write members", err)
+	}
+
 	defer b.unsub(name)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	go func(cancel context.CancelFunc, b *messageBroker, r *bufio.Reader) {
 		for {
@@ -210,11 +212,13 @@ func handleConn(b *messageBroker, conn net.Conn) {
 				_, err = conn.Write([]byte(fmt.Sprintf("* %s\n", msg.content)))
 				if err != nil {
 					fmt.Println("failed to write msg", err)
+					return
 				}
 			} else {
 				_, err = conn.Write([]byte(fmt.Sprintf("[%s] %s\n", msg.sender, msg.content)))
 				if err != nil {
 					fmt.Println("failed to write msg", err)
+					return
 				}
 			}
 		}
