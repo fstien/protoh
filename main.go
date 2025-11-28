@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"strings"
@@ -40,16 +41,21 @@ func main() {
 			if err != nil {
 				log.Printf("write error: %v", err)
 			}
+			continue
 		}
 
 		if strings.Contains(req, "=") {
-			b, a, _ := strings.Cut(req, "=")
+			k, v, _ := strings.Cut(req, "=")
 
-			kv[b] = a
+			if k == "version" {
+				continue
+			}
+
+			kv[k] = v
 		} else {
 			rsp := kv[req]
 
-			_, err = conn.WriteToUDP([]byte(rsp), clientAddr)
+			_, err = conn.WriteToUDP([]byte(fmt.Sprintf("%s=%s", req, rsp)), clientAddr)
 			if err != nil {
 				log.Printf("write error: %v", err)
 			}
