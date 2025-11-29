@@ -126,14 +126,14 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 								duration = -duration
 							}
 
-							fmt.Printf("duration: %s\n", duration)
+							fmt.Printf("duration: %d\n", duration)
 
 							// convert seconds to hours
 							duration /= 60 * 60
 
 							speed := dist / uint16(duration)
 
-							fmt.Printf("speed: %s\n", speed)
+							fmt.Printf("speed: %d\n", speed)
 
 							if speed > cd.limit {
 								day := int(math.Floor(float64(cd.ts) / float64(86400)))
