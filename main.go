@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -84,14 +85,34 @@ type command struct {
 
 type ticketDispatcher struct {
 	commandCh chan command
+
+	commandProcessed int
+	mu               sync.Mutex
 }
 
 func newTicketDispatcher(ctx context.Context) *ticketDispatcher {
 	t := &ticketDispatcher{
 		commandCh: make(chan command, 1000),
+
+		commandProcessed: 0,
+		mu:               sync.Mutex{},
 	}
 	go t.loop(ctx)
 	return t
+}
+
+func (t *ticketDispatcher) printMetrics(ctx context.Context) {
+	ticker := time.NewTicker(time.Second)
+	for {
+		select {
+		case <-ctx.Done():
+		case <-ticker.C:
+			t.mu.Lock()
+			fmt.Printf("len(commandCh): %d, processed: %d", len(t.commandCh), t.commandProcessed)
+			t.commandProcessed = 0
+			t.mu.Unlock()
+		}
+	}
 }
 
 func (t *ticketDispatcher) loop(ctx context.Context) {
@@ -101,6 +122,7 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 	pendingTicketsByRoad := make(map[uint16][]ticket)
 
 	for {
+		t.commandProcessed++
 		select {
 		case <-ctx.Done():
 			return
