@@ -121,9 +121,11 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 								dist = -dist
 							}
 
-							duration := cd.ts - ts
-							if duration < 0 {
-								duration = -duration
+							var duration uint32
+							if cd.ts > ts {
+								duration = cd.ts - ts
+							} else {
+								duration = ts - cd.ts
 							}
 
 							fmt.Printf("duration: %d\n", duration)
