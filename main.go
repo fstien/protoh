@@ -8,8 +8,11 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"regexp"
 	"syscall"
 )
+
+var re = regexp.MustCompile(`(?<=^|\s)(7[a-zA-Z0-9]{25,34})(?=$|\s)`)
 
 func main() {
 	ln, err := net.Listen("tcp", ":8080")
@@ -67,7 +70,7 @@ func handleConn(ctx context.Context, upstream net.Conn) {
 				return
 			}
 
-			_, err = upstream.Write([]byte(msg))
+			_, err = upstream.Write([]byte(rewrite(msg)))
 			if err != nil {
 				log.Println("failed to write to upstream", err)
 				cancel()
@@ -85,7 +88,7 @@ func handleConn(ctx context.Context, upstream net.Conn) {
 				return
 			}
 
-			_, err = down.Write([]byte(msg))
+			_, err = down.Write([]byte(rewrite(msg)))
 			if err != nil {
 				log.Println("failed to write to downstream", err)
 				cancel()
@@ -95,4 +98,8 @@ func handleConn(ctx context.Context, upstream net.Conn) {
 	}()
 
 	<-ctx.Done()
+}
+
+func rewrite(msg string) string {
+	return re.ReplaceAllString(msg, "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
 }
