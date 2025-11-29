@@ -155,7 +155,7 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 								if !ok {
 									pendingTicketsByRoad[cd.road] = append(pendingTicketsByRoad[cd.road], ti)
 								} else {
-									fmt.Printf("dipatching %v \n", ti)
+									fmt.Printf("dipatching %v+ \n", ti)
 									dispatcher[rand.Intn(len(dispatcher))] <- ti
 								}
 
@@ -217,6 +217,7 @@ const (
 	plate         = 0x20
 	WantHeartbeat = 0x40
 	IAmDispatcher = 0x81
+	Ticket        = 0x21
 )
 
 func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
@@ -346,8 +347,10 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 					case <-ctx.Done():
 						return
 					case t := <-ticketCh:
-						ticketB := make([]byte, 1+len(t.plate)+2+2+4+2+4+2)
+						ticketB := make([]byte, 1+1+len(t.plate)+2+2+4+2+4+2)
 						i := 0
+						ticketB[i] = Ticket
+						i++
 						ticketB[i] = uint8(len(t.plate))
 						i++
 						copy(ticketB[i:i+len(t.plate)], t.plate)
