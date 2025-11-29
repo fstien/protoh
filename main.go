@@ -117,6 +117,8 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 							if duration < 0 {
 								duration = -duration
 							}
+							// convert seconds to hours
+							duration /= 60 * 60
 
 							speed := dist / uint16(duration)
 
