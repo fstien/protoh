@@ -87,7 +87,9 @@ type ticketDispatcher struct {
 }
 
 func newTicketDispatcher(ctx context.Context) *ticketDispatcher {
-	t := &ticketDispatcher{}
+	t := &ticketDispatcher{
+		commandCh: make(chan command, 100),
+	}
 	go t.loop(ctx)
 	return t
 }
