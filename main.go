@@ -152,7 +152,7 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 									ts1:   ts,
 									mile2: cd.mile,
 									ts2:   cd.ts,
-									speed: uint16(speed),
+									speed: uint16(math.Round(speed)),
 								}
 
 								dispatcher, ok := dispatcherByRoad[cd.road]
