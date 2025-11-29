@@ -128,16 +128,9 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 								duration = ts - cd.ts
 							}
 
-							fmt.Printf("duration: %d\n", duration)
-
 							// convert seconds to hours
 							durationF := float64(duration) / float64(60*60)
-
-							fmt.Printf("duration per hour: %d\n", durationF)
-
 							speed := float64(dist) / durationF
-
-							fmt.Printf("speed: %d\n", speed)
 
 							if speed > float64(cd.limit) {
 								day := int(math.Floor(float64(cd.ts) / float64(86400)))
@@ -165,6 +158,9 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 									dispatcher[rand.Intn(len(dispatcher))] <- ti
 								}
 
+								if ticketsPerDayByPlate[cd.plate] == nil {
+									ticketsPerDayByPlate[cd.plate] = make(map[int]bool)
+								}
 								ticketsPerDayByPlate[cd.plate][day] = true
 							}
 
