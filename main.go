@@ -136,19 +136,23 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 
 							// convert seconds to hours
 							durationF := float64(duration) / float64(60*60)
-							fmt.Printf("dist %d, duration %d, durationF %f\n", dist, duration, durationF)
-
 							speed := float64(dist) / durationF
 
-							fmt.Printf("speed %f, limit %d\n", speed, cd.limit)
-
 							if speed > float64(cd.limit) {
-								day := int(math.Floor(float64(secondTs) / 86400))
+								startDay := int(math.Floor(float64(firstTs) / 86400))
+								endDay := int(math.Floor(float64(secondTs) / 86400))
+
+								alreadyIssuedOnDay := false
 								if ticketsPerDayByPlate[cd.plate] != nil {
-									if ticketsPerDayByPlate[cd.plate][day] == true {
-										// ticket already issued
-										continue
+									for d := startDay; d <= endDay; d++ {
+										if ticketsPerDayByPlate[cd.plate][d] == true {
+											// ticket already issued
+											alreadyIssuedOnDay = true
+										}
 									}
+								}
+								if alreadyIssuedOnDay {
+									continue
 								}
 
 								ti := ticket{
@@ -172,7 +176,9 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 								if ticketsPerDayByPlate[cd.plate] == nil {
 									ticketsPerDayByPlate[cd.plate] = make(map[int]bool)
 								}
-								ticketsPerDayByPlate[cd.plate][day] = true
+								for d := startDay; d <= endDay; d++ {
+									ticketsPerDayByPlate[cd.plate][d] = true
+								}
 							}
 
 						}
@@ -392,8 +398,6 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 						}
 
 						binary.BigEndian.PutUint16(ticketB[i:i+2], t.speed*100)
-
-						fmt.Printf("ticket speed (x100): %d\n", t.speed*100)
 
 						_, err = client.Write(ticketB)
 						if err != nil {
