@@ -128,6 +128,8 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 
 							// convert seconds to hours
 							durationF := float64(duration) / float64(60*60)
+							fmt.Printf("duration %d, durationF %f\n", duration, durationF)
+
 							speed := float64(dist) / durationF
 
 							fmt.Printf("speed %f, limit %d\n", speed, cd.limit)
@@ -382,7 +384,7 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 						}
 
 						binary.BigEndian.PutUint16(ticketB[i:i+2], t.speed*100)
-						
+
 						fmt.Printf("ticket speed (x100): %d\n", t.speed*100)
 
 						_, err = client.Write(ticketB)
