@@ -98,6 +98,7 @@ func newTicketDispatcher(ctx context.Context) *ticketDispatcher {
 		mu:               sync.Mutex{},
 	}
 	go t.loop(ctx)
+	go t.printMetrics(ctx)
 	return t
 }
 
