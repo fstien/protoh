@@ -54,6 +54,7 @@ func handleConn(ctx context.Context, upstream net.Conn) {
 		fmt.Println("failed to dial", err)
 		return
 	}
+	defer down.Close()
 
 	downReader := bufio.NewReader(down)
 
@@ -102,9 +103,7 @@ const TonysAddress = "7YWHMfk9JZe0LM0g1ZauHuiSxhI"
 
 var boguscoinRegex = regexp.MustCompile(`^7[a-zA-Z0-9]{25,34}$`)
 
-// RewriteBoguscoin replaces all Boguscoin addresses in a message with Tony's address
 func RewriteBoguscoin(message string) string {
-	// Strip trailing newline for processing, we'll add it back
 	suffix := ""
 	if len(message) > 0 && message[len(message)-1] == '\n' {
 		suffix = "\n"
