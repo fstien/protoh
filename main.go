@@ -1,64 +1,98 @@
 package main
 
 import (
+	"bufio"
+	"context"
 	"fmt"
 	"log"
 	"net"
-	"strings"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
-	addr, err := net.ResolveUDPAddr("udp", ":8080")
+	ln, err := net.Listen("tcp", ":8080")
 	if err != nil {
-		log.Fatalf("resolve error: %v", err)
+		panic(err)
 	}
+	defer ln.Close()
 
-	conn, err := net.ListenUDP("udp", addr)
-	if err != nil {
-		log.Fatalf("listen error: %v", err)
-	}
-	defer conn.Close()
+	fmt.Println("listening on 8080")
 
-	log.Println("UDP echo server listening on :8080")
+	ctx, cancel := context.WithCancel(context.Background())
 
-	buf := make([]byte, 1000)
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+	defer signal.Stop(sigCh)
 
-	kv := make(map[string]string)
+	go func() {
+		<-sigCh
+		ln.Close()
+		cancel()
+	}()
 
 	for {
-		n, clientAddr, err := conn.ReadFromUDP(buf)
+		conn, err := ln.Accept()
 		if err != nil {
-			log.Printf("read error: %v", err)
+			fmt.Println("error accepting: ", err)
 			continue
 		}
 
-		log.Printf("received %d bytes from %s", n, clientAddr)
-
-		req := string(buf[:n])
-
-		if string(req) == "version" {
-			_, err = conn.WriteToUDP([]byte("version=Francois' kv store"), clientAddr)
-			if err != nil {
-				log.Printf("write error: %v", err)
-			}
-			continue
-		}
-
-		if strings.Contains(req, "=") {
-			k, v, _ := strings.Cut(req, "=")
-
-			if k == "version" {
-				continue
-			}
-
-			kv[k] = v
-		} else {
-			rsp := kv[req]
-
-			_, err = conn.WriteToUDP([]byte(fmt.Sprintf("%s=%s", req, rsp)), clientAddr)
-			if err != nil {
-				log.Printf("write error: %v", err)
-			}
-		}
+		go handleConn(ctx, conn)
 	}
+}
+
+func handleConn(ctx context.Context, upstream net.Conn) {
+	defer upstream.Close()
+
+	upReader := bufio.NewReader(upstream)
+
+	down, err := net.Dial("tcp", "chat.protohackers.com:16963")
+	if err != nil {
+		fmt.Println("failed to dial", err)
+		return
+	}
+
+	downReader := bufio.NewReader(down)
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	go func() {
+		for {
+			msg, err := downReader.ReadString('\n')
+			if err != nil {
+				log.Println("failed to read from downstream", err)
+				cancel()
+				return
+			}
+
+			_, err = upstream.Write([]byte(msg))
+			if err != nil {
+				log.Println("failed to write to upstream", err)
+				cancel()
+				return
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			msg, err := upReader.ReadString('\n')
+			if err != nil {
+				log.Println("failed to read from upstrean", err)
+				cancel()
+				return
+			}
+
+			_, err = down.Write([]byte(msg))
+			if err != nil {
+				log.Println("failed to write to downstream", err)
+				cancel()
+				return
+			}
+		}
+	}()
+
+	<-ctx.Done()
 }
