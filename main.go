@@ -206,6 +206,10 @@ const (
 func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 	defer client.Close()
 
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithCancel(ctx)
+	defer cancel()
+
 	for {
 		msgType := make([]byte, 1)
 		_, err := io.ReadFull(client, msgType)
