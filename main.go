@@ -139,7 +139,7 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 
 							fmt.Printf("speed: %d\n", speed)
 
-							if speed > cd.limit {
+							if speed > float64(cd.limit) {
 								day := int(math.Floor(float64(cd.ts) / float64(86400)))
 								if ticketsPerDayByPlate[cd.plate] != nil {
 									if ticketsPerDayByPlate[cd.plate][day] == true {
@@ -155,7 +155,7 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 									ts1:   ts,
 									mile2: cd.mile,
 									ts2:   cd.ts,
-									speed: speed,
+									speed: uint16(speed),
 								}
 
 								dispatcher, ok := dispatcherByRoad[cd.road]
