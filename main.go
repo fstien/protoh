@@ -131,11 +131,11 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 							fmt.Printf("duration: %d\n", duration)
 
 							// convert seconds to hours
-							duration = duration / (60 * 60)
+							durationF := float64(duration) / float64(60*60)
 
-							fmt.Printf("duration per hour: %d\n", duration)
+							fmt.Printf("duration per hour: %d\n", durationF)
 
-							speed := dist / uint16(duration)
+							speed := float64(dist) / durationF
 
 							fmt.Printf("speed: %d\n", speed)
 
