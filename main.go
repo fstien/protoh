@@ -114,9 +114,11 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 						for m, ts := range carTsByMileByRoadByPlate[cd.plate][cd.road] {
 							fmt.Printf("m: %d, ts: %d (plate: %s, road %d) \n", m, ts, cd.plate, cd.road)
 
-							dist := cd.mile - m
-							if dist < 0 {
-								dist = -dist
+							var dist uint16
+							if cd.mile > m {
+								dist = cd.mile - m
+							} else {
+								dist = m - cd.mile
 							}
 
 							var duration uint32
@@ -128,7 +130,7 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 
 							// convert seconds to hours
 							durationF := float64(duration) / float64(60*60)
-							fmt.Printf("duration %d, durationF %f\n", duration, durationF)
+							fmt.Printf("dist %d, duration %d, durationF %f\n", dist, duration, durationF)
 
 							speed := float64(dist) / durationF
 
