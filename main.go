@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"strings"
 	"syscall"
 )
 
@@ -99,19 +100,22 @@ func handleConn(ctx context.Context, upstream net.Conn) {
 
 const TonysAddress = "7YWHMfk9JZe0LM0g1ZauHuiSxhI"
 
-// Boguscoin address pattern using word boundaries more carefully
-// Match: start of string or space, then 7 followed by 25-34 alphanumeric chars, then end of string or space
-var boguscoinRegex = regexp.MustCompile(`(^| )(7[a-zA-Z0-9]{25,34})($| )`)
+var boguscoinRegex = regexp.MustCompile(`^7[a-zA-Z0-9]{25,34}$`)
 
 // RewriteBoguscoin replaces all Boguscoin addresses in a message with Tony's address
 func RewriteBoguscoin(message string) string {
-	// Use a loop because matches can overlap (e.g., "addr1 addr2" - the space between is shared)
-	for {
-		newMessage := boguscoinRegex.ReplaceAllString(message, "${1}"+TonysAddress+"${3}")
-		if newMessage == message {
-			break
-		}
-		message = newMessage
+	// Strip trailing newline for processing, we'll add it back
+	suffix := ""
+	if len(message) > 0 && message[len(message)-1] == '\n' {
+		suffix = "\n"
+		message = message[:len(message)-1]
 	}
-	return message
+
+	parts := strings.Split(message, " ")
+	for i, part := range parts {
+		if boguscoinRegex.MatchString(part) {
+			parts[i] = TonysAddress
+		}
+	}
+	return strings.Join(parts, " ") + suffix
 }
