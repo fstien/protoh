@@ -101,5 +101,5 @@ func handleConn(ctx context.Context, upstream net.Conn) {
 }
 
 func rewrite(msg string) string {
-	return re.ReplaceAllString(msg, "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
+	return re.ReplaceAllString(msg, "${1}7YWHMfk9JZe0LM0g1ZauHuiSxhI${3}")
 }
