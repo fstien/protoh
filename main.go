@@ -155,6 +155,7 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 								if !ok {
 									pendingTicketsByRoad[cd.road] = append(pendingTicketsByRoad[cd.road], ti)
 								} else {
+									fmt.Printf("dipatching %v \n", ti)
 									dispatcher[rand.Intn(len(dispatcher))] <- ti
 								}
 
