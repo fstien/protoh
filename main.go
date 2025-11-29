@@ -96,12 +96,12 @@ func newTicketDispatcher(ctx context.Context) *ticketDispatcher {
 }
 
 func (t *ticketDispatcher) loop(ctx context.Context) {
-	for {
-		dispatcherByRoad := make(map[uint16][]chan ticket)
-		carTsByMileByRoadByPlate := make(map[string]map[uint16]map[uint16]uint32)
-		ticketsPerDayByPlate := make(map[string]map[int]bool)
-		pendingTicketsByRoad := make(map[uint16][]ticket)
+	dispatcherByRoad := make(map[uint16][]chan ticket)
+	carTsByMileByRoadByPlate := make(map[string]map[uint16]map[uint16]uint32)
+	ticketsPerDayByPlate := make(map[string]map[int]bool)
+	pendingTicketsByRoad := make(map[uint16][]ticket)
 
+	for {
 		select {
 		case <-ctx.Done():
 			return
