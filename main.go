@@ -387,6 +387,10 @@ func handleHeartbeatRequest(ctx context.Context, client net.Conn) bool {
 
 	i := binary.BigEndian.Uint32(ib)
 
+	if i == 0 {
+		return false
+	}
+
 	go func() {
 		t := time.NewTicker(time.Duration(i) * 100 * time.Millisecond)
 
