@@ -125,6 +125,9 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 							if duration < 0 {
 								duration = -duration
 							}
+
+							fmt.Printf("duration: %s\n", duration)
+
 							// convert seconds to hours
 							duration /= 60 * 60
 
