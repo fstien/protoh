@@ -367,6 +367,8 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 						i += 4
 						binary.BigEndian.PutUint16(ticketB[i:i+2], t.speed*100)
 
+						fmt.Printf("ticket speed (x100): %d\n", t.speed*100)
+
 						_, err = client.Write(ticketB)
 						if err != nil {
 							if err != io.EOF {
