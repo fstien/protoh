@@ -88,7 +88,7 @@ type ticketDispatcher struct {
 
 func newTicketDispatcher(ctx context.Context) *ticketDispatcher {
 	t := &ticketDispatcher{
-		commandCh: make(chan command, 100),
+		commandCh: make(chan command, 1000),
 	}
 	go t.loop(ctx)
 	return t
@@ -219,7 +219,7 @@ func (t *ticketDispatcher) plate(road, mile, limit uint16, plate string, ts uint
 }
 
 func (t *ticketDispatcher) registerDispatcher(roads []uint16) chan ticket {
-	ticketCh := make(chan ticket, 10)
+	ticketCh := make(chan ticket, 100)
 	t.commandCh <- command{
 		t:        commandRegisterDispatch,
 		ticketCh: ticketCh,
