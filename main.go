@@ -110,6 +110,8 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 			case commandPlate:
 				fmt.Printf("plate road: %d, mile %d, limit %d, %s, ts: %d \n", cd.road, cd.mile, cd.limit, cd.plate, cd.ts)
 
+				fmt.Printf("carTsByMileByRoadByPlate: %v", carTsByMileByRoadByPlate)
+
 				if carTsByMileByRoadByPlate[cd.plate] != nil {
 					if carTsByMileByRoadByPlate[cd.plate][cd.road] != nil {
 						for m, ts := range carTsByMileByRoadByPlate[cd.plate][cd.road] {
