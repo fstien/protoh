@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"math/rand"
 	"net"
@@ -112,6 +113,8 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 				if carTsByMileByRoadByPlate[cd.plate] != nil {
 					if carTsByMileByRoadByPlate[cd.plate][cd.road] != nil {
 						for m, ts := range carTsByMileByRoadByPlate[cd.plate][cd.road] {
+							log.Printf("m: %d, ts: %d (plate: %s, road %d", m, ts, cd.plate, cd.roads)
+
 							dist := cd.mile - m
 							if dist < 0 {
 								dist = -dist
@@ -165,6 +168,7 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 				}
 
 				carTsByMileByRoadByPlate[cd.plate][cd.road][cd.mile] = cd.ts
+				log.Printf("carTsByMileByRoadByPlate[cd.plate][cd.road] for %s road %d mile %d: ts %d", cd.plate, cd.road, cd.mile, carTsByMileByRoadByPlate[cd.plate][cd.road][cd.mile])
 
 			case commandRegisterDispatch:
 				for _, r := range cd.roads {
