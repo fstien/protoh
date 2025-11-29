@@ -109,7 +109,7 @@ func (t *ticketDispatcher) printMetrics(ctx context.Context) {
 		case <-ctx.Done():
 		case <-ticker.C:
 			t.mu.Lock()
-			fmt.Printf("len(commandCh): %d, processed: %d", len(t.commandCh), t.commandProcessed)
+			fmt.Printf("len(commandCh): %d, processed: %d\n", len(t.commandCh), t.commandProcessed)
 			t.commandProcessed = 0
 			t.mu.Unlock()
 		}
