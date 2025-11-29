@@ -277,7 +277,7 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 					}
 					ts := binary.BigEndian.Uint32(tsB)
 
-					fmt.Printf("plate %s, %d", string(plate), ts)
+					fmt.Printf("plate road: %d, mile %d, limit %d, %s, ts: %d \n", road, mile, limit, string(plate), ts)
 					t.plate(road, mile, limit, string(plate), ts)
 
 				case WantHeartbeat:
