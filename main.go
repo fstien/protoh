@@ -60,43 +60,27 @@ func handleConn(ctx context.Context, upstream net.Conn) {
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	go func() {
-		for {
-			msg, err := downReader.ReadString('\n')
-			if err != nil {
-				log.Println("failed to read from downstream", err)
-				cancel()
-				return
-			}
-
-			_, err = upstream.Write([]byte(RewriteBoguscoin(msg)))
-			if err != nil {
-				log.Println("failed to write to upstream", err)
-				cancel()
-				return
-			}
-		}
-	}()
-
-	go func() {
-		for {
-			msg, err := upReader.ReadString('\n')
-			if err != nil {
-				log.Println("failed to read from upstrean", err)
-				cancel()
-				return
-			}
-
-			_, err = down.Write([]byte(RewriteBoguscoin(msg)))
-			if err != nil {
-				log.Println("failed to write to downstream", err)
-				cancel()
-				return
-			}
-		}
-	}()
+	go forward(ctx, cancel, upReader, down, "client")
+	go forward(ctx, cancel, downReader, upstream, "server")
 
 	<-ctx.Done()
+}
+
+func forward(ctx context.Context, cancel context.CancelFunc, src *bufio.Reader, dst net.Conn, label string) {
+	for {
+		msg, err := src.ReadString('\n')
+		if err != nil {
+			log.Printf("failed to read from %s: %v", label, err)
+			cancel()
+			return
+		}
+		_, err = dst.Write([]byte(RewriteBoguscoin(msg)))
+		if err != nil {
+			log.Printf("failed to write to %s: %v", label, err)
+			cancel()
+			return
+		}
+	}
 }
 
 const TonysAddress = "7YWHMfk9JZe0LM0g1ZauHuiSxhI"
