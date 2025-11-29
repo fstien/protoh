@@ -115,7 +115,7 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 				if carTsByMileByRoadByPlate[cd.plate] != nil {
 					if carTsByMileByRoadByPlate[cd.plate][cd.road] != nil {
 						for m, ts := range carTsByMileByRoadByPlate[cd.plate][cd.road] {
-							log.Printf("m: %d, ts: %d (plate: %s, road %d", m, ts, cd.plate, cd.roads)
+							fmt.Printf("m: %d, ts: %d (plate: %s, road %d)", m, ts, cd.plate, cd.road)
 
 							dist := cd.mile - m
 							if dist < 0 {
