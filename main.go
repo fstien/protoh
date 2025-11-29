@@ -130,6 +130,8 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 
 							speed := dist / uint16(duration)
 
+							fmt.Printf("speed: %s\n", speed)
+
 							if speed > cd.limit {
 								day := int(math.Floor(float64(cd.ts) / float64(86400)))
 								if ticketsPerDayByPlate[cd.plate] != nil {
@@ -169,7 +171,6 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 				}
 
 				carTsByMileByRoadByPlate[cd.plate][cd.road][cd.mile] = cd.ts
-				fmt.Printf("carTsByMileByRoadByPlate[cd.plate][cd.road] for %s road %d mile %d: ts %d\n", cd.plate, cd.road, cd.mile, carTsByMileByRoadByPlate[cd.plate][cd.road][cd.mile])
 
 			case commandRegisterDispatch:
 				for _, r := range cd.roads {
