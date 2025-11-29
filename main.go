@@ -105,6 +105,8 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 		case cd := <-t.commandCh:
 			switch cd.t {
 			case commandPlate:
+				fmt.Printf("plate road: %d, mile %d, limit %d, %s, ts: %d \n", cd.road, cd.mile, cd.limit, cd.plate, cd.ts)
+
 				if carTsByMileByRoadByPlate[cd.plate] != nil {
 					if carTsByMileByRoadByPlate[cd.plate][cd.road] != nil {
 						for m, ts := range carTsByMileByRoadByPlate[cd.plate][cd.road] {
@@ -279,7 +281,6 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 					}
 					ts := binary.BigEndian.Uint32(tsB)
 
-					fmt.Printf("plate road: %d, mile %d, limit %d, %s, ts: %d \n", road, mile, limit, string(plate), ts)
 					t.plate(road, mile, limit, string(plate), ts)
 
 				case WantHeartbeat:
