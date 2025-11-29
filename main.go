@@ -12,8 +12,6 @@ import (
 	"syscall"
 )
 
-var re = regexp.MustCompile(`(^|\s)(7[a-zA-Z0-9]{25,34})(?=\s|$)`)
-
 func main() {
 	ln, err := net.Listen("tcp", ":8080")
 	if err != nil {
@@ -69,7 +67,7 @@ func handleConn(ctx context.Context, upstream net.Conn) {
 				return
 			}
 
-			_, err = upstream.Write([]byte(rewrite(msg)))
+			_, err = upstream.Write([]byte(RewriteBoguscoin(msg)))
 			if err != nil {
 				log.Println("failed to write to upstream", err)
 				cancel()
@@ -87,7 +85,7 @@ func handleConn(ctx context.Context, upstream net.Conn) {
 				return
 			}
 
-			_, err = down.Write([]byte(rewrite(msg)))
+			_, err = down.Write([]byte(RewriteBoguscoin(msg)))
 			if err != nil {
 				log.Println("failed to write to downstream", err)
 				cancel()
