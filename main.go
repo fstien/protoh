@@ -107,12 +107,12 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 		case cd := <-t.commandCh:
 			switch cd.t {
 			case commandPlate:
-				fmt.Printf("plate road: %d, mile %d, limit %d, %s, ts: %d \n", cd.road, cd.mile, cd.limit, cd.plate, cd.ts)
+				//fmt.Printf("plate road: %d, mile %d, limit %d, %s, ts: %d \n", cd.road, cd.mile, cd.limit, cd.plate, cd.ts)
 
 				if carTsByMileByRoadByPlate[cd.plate] != nil {
 					if carTsByMileByRoadByPlate[cd.plate][cd.road] != nil {
 						for m, ts := range carTsByMileByRoadByPlate[cd.plate][cd.road] {
-							fmt.Printf("m: %d, ts: %d (plate: %s, road %d) \n", m, ts, cd.plate, cd.road)
+							//fmt.Printf("m: %d, ts: %d (plate: %s, road %d) \n", m, ts, cd.plate, cd.road)
 
 							var dist uint16
 							if cd.mile > m {
@@ -169,7 +169,7 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 								if !ok {
 									pendingTicketsByRoad[cd.road] = append(pendingTicketsByRoad[cd.road], ti)
 								} else {
-									fmt.Printf("dipatching %+v \n", ti)
+									//fmt.Printf("dipatching %+v \n", ti)
 									dispatcher[rand.Intn(len(dispatcher))] <- ti
 								}
 
