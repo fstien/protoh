@@ -143,7 +143,7 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 							fmt.Printf("speed %f, limit %d\n", speed, cd.limit)
 
 							if speed > float64(cd.limit) {
-								day := int(math.Floor(float64(secondTs) / float64(86400)))
+								day := int(math.Floor(float64(secondTs) / 86400))
 								if ticketsPerDayByPlate[cd.plate] != nil {
 									if ticketsPerDayByPlate[cd.plate][day] == true {
 										// ticket already issued
