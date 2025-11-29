@@ -357,16 +357,32 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 						i += len(t.plate)
 						binary.BigEndian.PutUint16(ticketB[i:i+2], t.road)
 						i += 2
-						binary.BigEndian.PutUint16(ticketB[i:i+2], t.mile1)
-						i += 2
-						binary.BigEndian.PutUint32(ticketB[i:i+4], t.ts1)
-						i += 4
-						binary.BigEndian.PutUint16(ticketB[i:i+2], t.mile2)
-						i += 2
-						binary.BigEndian.PutUint32(ticketB[i:i+4], t.ts2)
-						i += 4
-						binary.BigEndian.PutUint16(ticketB[i:i+2], t.speed*100)
 
+						if t.ts1 < t.ts2 {
+							binary.BigEndian.PutUint16(ticketB[i:i+2], t.mile1)
+							i += 2
+							binary.BigEndian.PutUint32(ticketB[i:i+4], t.ts1)
+							i += 4
+
+							binary.BigEndian.PutUint16(ticketB[i:i+2], t.mile2)
+							i += 2
+							binary.BigEndian.PutUint32(ticketB[i:i+4], t.ts2)
+							i += 4
+
+						} else {
+							binary.BigEndian.PutUint16(ticketB[i:i+2], t.mile2)
+							i += 2
+							binary.BigEndian.PutUint32(ticketB[i:i+4], t.ts2)
+							i += 4
+
+							binary.BigEndian.PutUint16(ticketB[i:i+2], t.mile1)
+							i += 2
+							binary.BigEndian.PutUint32(ticketB[i:i+4], t.ts1)
+							i += 4
+						}
+
+						binary.BigEndian.PutUint16(ticketB[i:i+2], t.speed*100)
+						
 						fmt.Printf("ticket speed (x100): %d\n", t.speed*100)
 
 						_, err = client.Write(ticketB)
