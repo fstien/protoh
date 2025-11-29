@@ -190,6 +190,10 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 					carTsByMileByRoadByPlate[cd.plate][cd.road] = make(map[uint16]uint32)
 				}
 
+				if carTsByMileByRoadByPlate[cd.plate][cd.road] == nil {
+					carTsByMileByRoadByPlate[cd.plate][cd.road] = make(map[uint16]uint32)
+				}
+
 				carTsByMileByRoadByPlate[cd.plate][cd.road][cd.mile] = cd.ts
 
 			case commandRegisterDispatch:
