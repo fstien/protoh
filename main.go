@@ -99,28 +99,19 @@ func handleConn(ctx context.Context, upstream net.Conn) {
 
 const TonysAddress = "7YWHMfk9JZe0LM0g1ZauHuiSxhI"
 
-// Boguscoin address pattern:
-// - Starts with "7"
-// - 26-35 alphanumeric characters total
-// - Must be at start of message OR preceded by space
-// - Must be at end of message OR followed by space
-var boguscoinRegex = regexp.MustCompile(`(^|[ ])7[a-zA-Z0-9]{25,34}($|[ ])`)
+// Boguscoin address pattern using word boundaries more carefully
+// Match: start of string or space, then 7 followed by 25-34 alphanumeric chars, then end of string or space
+var boguscoinRegex = regexp.MustCompile(`(^| )(7[a-zA-Z0-9]{25,34})($| )`)
 
 // RewriteBoguscoin replaces all Boguscoin addresses in a message with Tony's address
 func RewriteBoguscoin(message string) string {
-	return boguscoinRegex.ReplaceAllStringFunc(message, func(match string) string {
-		// Preserve leading/trailing spaces
-		prefix := ""
-		suffix := ""
-
-		if len(match) > 0 && match[0] == ' ' {
-			prefix = " "
-			match = match[1:]
+	// Use a loop because matches can overlap (e.g., "addr1 addr2" - the space between is shared)
+	for {
+		newMessage := boguscoinRegex.ReplaceAllString(message, "${1}"+TonysAddress+"${3}")
+		if newMessage == message {
+			break
 		}
-		if len(match) > 0 && match[len(match)-1] == ' ' {
-			suffix = " "
-		}
-
-		return prefix + TonysAddress + suffix
-	})
+		message = newMessage
+	}
+	return message
 }
