@@ -12,7 +12,7 @@ import (
 	"syscall"
 )
 
-var re = regexp.MustCompile(`(^|\s)(7[a-zA-Z0-9]{25,34})(\s|$)`)
+var re = regexp.MustCompile(`(^|\s)(7[a-zA-Z0-9]{25,34})(?=\s|$)`)
 
 func main() {
 	ln, err := net.Listen("tcp", ":8080")
@@ -38,7 +38,6 @@ func main() {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			fmt.Println("error accepting: ", err)
 			continue
 		}
 
