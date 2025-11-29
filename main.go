@@ -37,7 +37,12 @@ func main() {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			continue
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				continue
+			}
 		}
 
 		go handleConn(ctx, conn)
