@@ -284,6 +284,7 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 	defer cancel()
 
 	heartBeatsRequested := false
+	var clientType byte
 
 	for {
 		msgType := make([]byte, 1)
@@ -297,6 +298,18 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 
 		switch msgType[0] {
 		case IAmCamera:
+			if clientType != 0 {
+				rsp := errorMsg(msgType)
+				_, err := client.Write(rsp)
+				if err != nil {
+					if err != io.EOF {
+						fmt.Println("failed to send error to client", err)
+					}
+					return
+				}
+				return
+			}
+			clientType = IAmCamera
 			body := make([]byte, 6)
 			_, err := io.ReadFull(client, body)
 			if err != nil {
@@ -383,6 +396,19 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 				}
 			}
 		case IAmDispatcher:
+			if clientType != 0 {
+				rsp := errorMsg(msgType)
+				_, err := client.Write(rsp)
+				if err != nil {
+					if err != io.EOF {
+						fmt.Println("failed to send error to client", err)
+					}
+					return
+				}
+				return
+			}
+			clientType = IAmCamera
+
 			nRoadsB := make([]byte, 1)
 			_, err = io.ReadFull(client, nRoadsB)
 			if err != nil {
@@ -392,7 +418,7 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 				return
 			}
 
-			roadsB := make([]byte, 2*nRoadsB[0])
+			roadsB := make([]byte, 2*int(nRoadsB[0]))
 			_, err = io.ReadFull(client, roadsB)
 			if err != nil {
 				if err != io.EOF {
@@ -406,7 +432,14 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 			r := make([]uint16, roadCount)
 			if roadCount > 0 {
 				for i := 0; i < roadCount; i++ {
-					r[i] = binary.BigEndian.Uint16(roadsB[2*i : 2*i+2])
+					start := 2 * i
+					end := start + 2
+					if end > len(roadsB) {
+						fmt.Printf("bounds error: trying to access roadsB[%d:%d] but len is %d (roadCount=%d, nRoadsB[0]=%d)\n",
+							start, end, len(roadsB), roadCount, nRoadsB[0])
+						return
+					}
+					r[i] = binary.BigEndian.Uint16(roadsB[start:end])
 				}
 			}
 
