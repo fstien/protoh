@@ -237,6 +237,7 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 					for _, ti := range pendingTicketsByRoad[r] {
 						cd.ticketCh <- ti
 					}
+					delete(pendingTicketsByRoad, r)
 				}
 			default:
 				fmt.Println("unknown command: ", cd.t)
