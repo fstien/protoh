@@ -76,7 +76,7 @@ type ticket struct {
 	ts1   uint32
 	mile2 uint16
 	ts2   uint32
-	speed uint16
+	speed float64
 }
 
 type command struct {
@@ -196,7 +196,7 @@ func (t *ticketDispatcher) loop(ctx context.Context) {
 									ts1:   ts,
 									mile2: cd.mile,
 									ts2:   cd.ts,
-									speed: uint16(math.Round(speed)),
+									speed: speed,
 								}
 
 								dispatcher, ok := dispatcherByRoad[cd.road]
@@ -267,6 +267,7 @@ func (t *ticketDispatcher) registerDispatcher(roads []uint16) chan ticket {
 }
 
 const (
+	Error         = 0x10
 	IAmCamera     = 0x80
 	plate         = 0x20
 	WantHeartbeat = 0x40
@@ -280,6 +281,8 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
+
+	heartBeatsRequested := false
 
 	for {
 		msgType := make([]byte, 1)
@@ -351,6 +354,18 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 					t.plate(road, mile, limit, string(plate), ts)
 
 				case WantHeartbeat:
+					if heartBeatsRequested {
+						rsp := errorMsg(msgType)
+						_, err := client.Write(rsp)
+						if err != nil {
+							if err != io.EOF {
+								fmt.Println("failed to send error to client", err)
+							}
+							return
+						}
+						return
+					}
+					heartBeatsRequested = true
 					if handleHeartbeatRequest(ctx, client) {
 						return
 					}
@@ -435,7 +450,7 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 							i += 4
 						}
 
-						binary.BigEndian.PutUint16(ticketB[i:i+2], t.speed*100)
+						binary.BigEndian.PutUint16(ticketB[i:i+2], uint16(math.Round(t.speed))*100)
 
 						_, err = client.Write(ticketB)
 						if err != nil {
@@ -449,6 +464,18 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 			}()
 
 		case WantHeartbeat:
+			if heartBeatsRequested {
+				rsp := errorMsg(msgType)
+				_, err := client.Write(rsp)
+				if err != nil {
+					if err != io.EOF {
+						fmt.Println("failed to send error to client", err)
+					}
+					return
+				}
+				return
+			}
+			heartBeatsRequested = true
 			if handleHeartbeatRequest(ctx, client) {
 				return
 			}
@@ -506,9 +533,10 @@ func handleHeartbeatRequest(ctx context.Context, client net.Conn) bool {
 
 func errorMsg(msgType []byte) []byte {
 	msg := fmt.Sprintf("invalid message: %02x", msgType[0])
-	rsp := make([]byte, 1+len(msg))
-	rsp[0] = uint8(len(msg))
-	copy(rsp[1:], []byte(msg))
+	rsp := make([]byte, 1+1+len(msg))
+	rsp[0] = Error
+	rsp[1] = uint8(len(msg))
+	copy(rsp[2:], []byte(msg))
 	return rsp
 }
 
