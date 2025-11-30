@@ -8,8 +8,10 @@ import (
 	"math"
 	"math/rand"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -34,6 +36,15 @@ func main() {
 		<-sigCh
 		ln.Close()
 		cancel()
+	}()
+
+	// Start debug HTTP server
+	go func() {
+		http.HandleFunc("/debug/goroutines", handleGoroutineStackDump)
+		fmt.Println("debug server listening on :8081")
+		if err := http.ListenAndServe(":8081", nil); err != nil {
+			fmt.Printf("debug server error: %v\n", err)
+		}
 	}()
 
 	t := newTicketDispatcher(ctx)
@@ -499,4 +510,11 @@ func errorMsg(msgType []byte) []byte {
 	rsp[0] = uint8(len(msg))
 	copy(rsp[1:], []byte(msg))
 	return rsp
+}
+
+func handleGoroutineStackDump(w http.ResponseWriter, r *http.Request) {
+	buf := make([]byte, 1024*1024)
+	stackSize := runtime.Stack(buf, true)
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write(buf[:stackSize])
 }
