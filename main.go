@@ -390,7 +390,7 @@ func handleConn(ctx context.Context, t *ticketDispatcher, client net.Conn) {
 			r := make([]uint16, roadCount)
 			if roadCount > 0 {
 				for i := 0; i < roadCount; i++ {
-					r[0] = binary.BigEndian.Uint16(roadsB[2*i : 2*i+2])
+					r[i] = binary.BigEndian.Uint16(roadsB[2*i : 2*i+2])
 				}
 			}
 
